@@ -1,0 +1,1 @@
+ruby -i -pe '$_.gsub!(/{/, "{{").gsub!(/}/, "}}") if $_.match(/title\s*=\s*/) && $_.scan(/{/).count == 1' references.bib
