@@ -58,26 +58,26 @@
 しかし，演算器の性能向上と比較して，ストレージの性能向上は計算機の性能向上に追いついていない．
 特に，近年のシミュレーションサイズの増加に伴い，ストレージ性能の不足がシステムのボトルネックとなっている．
 このストレージとの性能の乖離へ対処するために，
-ストレージ中間層を導入し，グローバルファイルシステムへの書き込みを高速化する研究~\cite{wang2016burstbuffer,moody2017unifyfs}，
-ジョブ中で一時的にデータを格納するad-hocファイルシステム~\cite{vef2018gekkofs,tatebe2022chfs}の研究がされてきた．
+ストレージ中間層を導入し，グローバルファイルシステムへの書き込みを高速化する研究\cite{wang2016burstbuffer,moody2017unifyfs}，
+ジョブ中で一時的にデータを格納するad-hocファイルシステム\cite{vef2018gekkofs,tatebe2022chfs}の研究がされてきた．
 キャッシュストレージ層，新しいストレージデバイスが登場することにより，
 ストレージレイヤーはより複雑になっている．
 このような複雑なストレージレイヤーやデバイスの特性を意識することなく
 効率的にアプリケーションを実行できることが求められている．
 
-多くのHPCアプリケーションは，HDF5~\cite{hdf5}やpnetCDF~\cite{pnetcdf}等高レベルI/Oライブラリを利用してI/O処理を行う~\cite{byna2020exahdf5}．
+多くのHPCアプリケーションは，HDF5\cite{hdf5}やpnetCDF\cite{pnetcdf}等高レベルI/Oライブラリを利用してI/O処理を行う\cite{byna2020exahdf5}．
 これらの高レベルI/Oライブラリでは，内部のI/O処理に，MPI-IOと言われるライブラリが利用されている．
 MPI-IOにはIOを抽象化する仕組みがあり，そこで，Lustreなどそれぞれのファイルシステムに対してのコネクターが実装される．
 HDF5等のライブラリでは，そのコネクター経由で各グローバルファイルシステムに対して書き込みを行っている．
 特定のサイズの大量データの連続書き込みにおいては高速だが，
 特定のアクセスパターン，例えば，小規模でスパースな書き込み，特定のサイズ以外のstridedアクセス，ランダムアクセスが多い場合，その性能は著しく低下する．
 HDF5には，高レベルなAPIでI/Oの機能の入れ替えが可能となるVirtual Object Layer（VOL）という機能がある．
-このVOLを活用したI/O処理について研究が進められている~\cite{zheng2022hdf5,tang2021transparent,soumagne2021accelerating}．
+このVOLを活用したI/O処理について研究が進められている\cite{zheng2022hdf5,tang2021transparent,soumagne2021accelerating}．
 VOLはその実装でデータの型のサイズ，データのレイアウト等の情報，コンテキストを得ることができる．
 これらの研究では，VOLの実装で得ることのできる様々な情報を活用していない．
 このVOLで得られるコンテキストを活用することで，I/O処理の高速化が期待される．
 
-Lustre~\cite{Lustre}，CHFS~\cite{tatebe2022chfs}といったファイルシステムではファイルをあるサイズのオブジェクトに分割して保存する．
+Lustre\cite{Lustre}，CHFS\cite{tatebe2022chfs}といったファイルシステムではファイルをあるサイズのオブジェクトに分割して保存する．
 一貫性を確保するために，そのオブジェクトごとにロックを取る．そのため，同一のオブジェクトに対する書き込みはロックを取られ，順番に行われる．
 そのオブジェクトのサイズは，stripe\_sizeやchunk\_sizeと呼ばれるパラメータで指定される．
 そのパラーメータで指定されたオブジェクトのサイズと書き込みサイズがあっていない場合，
@@ -102,9 +102,9 @@ Lustre~\cite{Lustre}，CHFS~\cite{tatebe2022chfs}といったファイルシス�
 \section{関連研究}
 
 HDF5のVOLを用いたI/O処理についての研究は，
-CacheVOL~\cite{zheng2022hdf5}やDAOS VOL~\cite{soumagne2021accelerating}，Async VOL~\cite{tang2021transparent}がある．
+CacheVOL\cite{zheng2022hdf5}やDAOS VOL\cite{soumagne2021accelerating}，Async VOL\cite{tang2021transparent}がある．
 
-Huihuo Zengらによる計算ノードのローカルSSDを利用した研究Cache VOL~\cite{zheng2022hdf5}
+Huihuo Zengらによる計算ノードのローカルSSDを利用した研究Cache VOL\cite{zheng2022hdf5}
 では書き込み時には，まず各ノードのノードローカルSSDに一時的に書き込み，
 その後，非同期で共有ファイルシステムに書き戻す．
 プログラムから見える実効速度はノードローカルSSDの速度のノード数倍のものになり，
@@ -112,7 +112,7 @@ Huihuo Zengらによる計算ノードのローカルSSDを利用した研究Cac
 この研究では，単純に自ノードが発行したI/Oをノードローカルストレージに一時的に書き込み，それを非同期に書き戻すのみであり，
 HDF5のVOL中で得ることができるコンテキストを活用できていない．
 
-Jerome Sounmagneらによる分散オブジェクトストレージであるDAOS~\cite{Breitenfeld2017DAOSFE}を使ったDAOS VOL~\cite{soumagne2021accelerating}がある．
+Jerome Sounmagneらによる分散オブジェクトストレージであるDAOS\cite{Breitenfeld2017DAOSFE}を使ったDAOS VOL\cite{soumagne2021accelerating}がある．
 DAOSは分散オブジェクトストレージであり，高いスケーラビリティを持つことが特徴である．
 この研究では，HDF5のVOLのレイヤーの機能を1つのオブジェクトに対応させ，DAOSに格納している．
 特に，Datasetの書き込みの際にはストライピングが可能であり，そのスライピング数をプログラム中でH5D\_set\_chunk()関数によってユーザーが設定できる．
@@ -225,7 +225,7 @@ HDF5のデータをファイルに格納する際は，多次元のメモリの�
 
 \subsection{Virtual Object Layerで得られる情報}
 VOLのDatasetのCallbackでは，Datasetの書き込みに関しての情報を得ることができる．
-その情報について，\figref{fig:hdf5infoinvol}に示す．
+その情報について表した図を\figref{fig:hdf5infoinvol}に示す．
 
 
 \begin{figure}[t]
@@ -336,7 +336,7 @@ end
 \section{評価}
 \subsection{評価環境}
 提案手法の実装に関して性能を評価する実験をした．
-実験には筑波大学のスーパーコンピューター~\cite{ccs2022pegasus}を使用した．
+実験には筑波大学のスーパーコンピューター\cite{ccs2022pegasus}を使用した．
 Pegasusの構成を表\ref{tab:pegasus}に示す．
 また，計算機クラスターに接続されている並列分散ファイルシステム，Lustreのスペックを
 表\ref{tab:lustre}に示す．
@@ -372,7 +372,7 @@ Pegasusの構成を表\ref{tab:pegasus}に示す．
 \end{table}
 
 \subsection{実験方法}
-素粒子物理シミュレーションのI/Oパターンを模したI/Oベンチマークh5bench~\cite{h5bench}を利用して評価した．
+素粒子物理シミュレーションのI/Oパターンを模したI/Oベンチマークh5bench\cite{h5bench}を利用して評価した．
 チェックポインティングのI/Oパターンを模したものであり，各stepで設定した問題サイズのDatasetを8つ作成し，書き込む．
 問題サイズは$8192 \times 8192$，timestep数は3に設定した．各ノードに16プロセスを配置し，ノード数を1-64ノードまで変化させた．
 h5benchの書き込みのアクセスパターンにはsegmentedであるが，stridedなアクセスパターンについても，
