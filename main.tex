@@ -149,17 +149,6 @@ HDF5は1つのファイルに任意のデータ型の配列を保存したり，
 HDF5の実際にユーザーから見える機能をそのまま抽象化できる仕組みがVOLである．
 HDF5の機能，Dataset，Group，Attribute，Datatype，File等の機能ごとに，
 open，create，read，write，closeといった関数コールバックを定義することで独自の処理を行うことができる．
-特にDatasetのコールバックの定義を\lstref{lst:volcallback}に示す．
-\begin{lstlisting}[caption=VOLのDatasetのコールバックの定義,label=lst:volcallback,language=c]
-static void *H5VL_dataset_create(void *obj, const H5VL_loc_params_t *loc_params, const char *name, hid_t lcpl_id, hid_t type_id, hid_t space_id, hid_t dcpl_id, hid_t dapl_id, hid_t dxpl_id, void **req);
-static void *H5VL_dataset_open(void *obj, const H5VL_loc_params_t *loc_params, const char *name, hid_t dapl_id, hid_t dxpl_id, void **req);
-static herr_t H5VL_dataset_read(size_t count, void *dset[], hid_t mem_type_id[], hid_t mem_space_id[], hid_t file_space_id[], hid_t plist_id, void *buf[], void **req);
-static herr_t H5VL_dataset_write(size_t count, void *dset[], hid_t mem_type_id[], hid_t mem_space_id[], hid_t file_space_id[], hid_t plist_id, const void *buf[], void **req);
-static herr_t H5VL_dataset_get(void *dset, H5VL_dataset_get_args_t *args, hid_t dxpl_id, void **req);
-static herr_t H5VL_dataset_specific(void *obj, H5VL_dataset_specific_args_t *args, hid_t dxpl_id, void **req);
-static herr_t H5VL_dataset_optional(void *obj, H5VL_optional_args_t *args, hid_t dxpl_id, void **req);
-static herr_t H5VL_dataset_close(void *dset, hid_t dxpl_id, void **req);
-\end{lstlisting}
 Dataset writeコールバックは，
 Datasetに対して何らかのデータを書き込んだときに呼ばれるが，
 引数のmem\_type\_id，mem\_space\_id，file\_space\_id，bufにレイアウト情報などが表現されている．
@@ -189,7 +178,9 @@ VFDプラグインとVOLプラグインについて共有ライブラリとし�
 \begin{lstlisting}[caption=プラグインの利用方法, label=lst:plugin]
 HDF5_PLUGIN_PATH=/path/to/plugin/directory HDF5_VOL_CONNECTOR=”{my_vol_connector under_vol=0;under_info=}” ./program
 \end{lstlisting}
-このように環境変数を指定するだけで，独自のI/O処理に切り替えることができる．
+HDF5\_PLUGIN\_PATHには，プラグインの共有ライブラリがあるディレクトリを指定する．
+HDF5\_VOL\_CONNECTORには，利用するVOLプラグインの名前を指定する．
+環境変数を指定するだけで，独自のI/O処理に切り替えることができる．
 MPI-IOにて新しいコネクターの実装をしたときは，MPI全体をビルドし直す必要があるため，
 アプリケーションユーザーからの利用にハードルがあった．
 この点，HDF5のVOLとVFDは
