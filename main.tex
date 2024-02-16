@@ -315,7 +315,7 @@ Lustreでのオブジェクトのサイズはstripe\_sizeによって設定で�
 CA VOLではDataset dataをCHFSに書き込みを行う際に，データの書き込み境界とCHFSのチャンク境界を合わせる．
 CHFSにはファイル作成時にそのファイルのチャンクサイズを指定するAPI，chfs\_create\_chunk\_size()が実装されており，これを利用する．
 Dataset dataの書き込み境界を決定するためには書き込みの粒度が必要で，writeコールバックまでopen,createを遅延させる必要がある．
-実装では，openではfdを-1に設定し，最初のwriteでfdが-1だったとき，そこでチャンクサイズを決定し，その後のwriteで実際の書き込みを行う．
+実装では，openではfdを$-1$に設定し，最初のwriteでfdが$-1$だったとき，そこでチャンクサイズを決定し，その後のwriteで実際の書き込みを行う．
 そのwriteコールバックの疑似コードをソースコード\ref{lst:write}に示す．
 \begin{lstlisting}[caption=dataset writeのコード,label=lst:write]
 int dataset_write(params) {
@@ -411,6 +411,21 @@ Pegasusの計算ノードのスペックを表\ref{tab:pegasus}に示す．
 問題サイズは$8192 \times 8192$，timestep数は3に設定した．各ノードに16プロセスを配置し，ノード数を1-64ノードまで変化させた．
 h5benchの書き込みのアクセスパターンにはsegmentedであるが，stridedなアクセスパターンについても，
 実データの書き込み部分でstridedに変換して評価を行った．
+segmentedとstridedアクセスパターンについて，それぞれ\figref{fig:stridedaccess}，\figref{fig:segmenetedaccess}に示す．
+\begin{figure}[t]
+	\centering
+	\includegraphics[page=18,width=\linewidth]{figure-crop.pdf}
+	\caption{strided アクセスパターン}
+	\label{fig:stridedaccess}
+\end{figure}
+\begin{figure}[t]
+	\centering
+	\includegraphics[page=19,width=\linewidth]{figure-crop.pdf}
+	\caption{segmeneted アクセスパターン}
+	\label{fig:segmenetedaccess}
+\end{figure}
+segmented アクセスでは各rankが書き込む領域がそれぞれ独立して並んでいる．
+strided アクセスでは各rankが書き込む領域がrank 0からrank nまで並び，それが繰り返される．
 また，今回の実装では，コンテキストに基づきchunk sizeを決定することで，ファイルシステムでのデータ境界と
 データの書き込み境界を合わせることにより，I/Oの並列度を高めることを目標としていた．
 それと比較するために，
