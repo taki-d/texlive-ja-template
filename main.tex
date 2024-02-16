@@ -65,7 +65,7 @@
 このような複雑なストレージレイヤーやデバイスの特性を意識することなく
 効率的にアプリケーションを実行できることが求められている．
 
-多くのHPCアプリケーションは，HDF5\cite{hdf5}やpnetCDF\cite{pnetcdf}等高レベルI/Oライブラリを利用してI/O処理を行う\cite{byna2020exahdf5}．
+多くのHPCアプリケーションは，HDF5~\cite{hdf5}やpnetCDF~\cite{pnetcdf}等高レベルI/Oライブラリを利用してI/O処理を行う\cite{byna2020exahdf5}．
 これらの高レベルI/Oライブラリでは，内部のI/O処理に，MPI-IOと言われるライブラリが利用されている．
 MPI-IOにはIOを抽象化する仕組みがあり，そこで，Lustreなどそれぞれのファイルシステムに対してのコネクターが実装される．
 HDF5等のライブラリでは，そのコネクター経由で各グローバルファイルシステムに対して書き込みを行っている．
@@ -77,7 +77,7 @@ VOLはその実装でデータの型のサイズ，データのレイアウト�
 これらの研究では，VOLの実装で得ることのできる様々な情報を活用していない．
 このVOLで得られるコンテキストを活用することで，I/O処理の高速化が期待される．
 
-Lustre\cite{Lustre}，CHFS\cite{tatebe2022chfs}といったファイルシステムではファイルをあるサイズのオブジェクトに分割して保存する．
+Lustre~\cite{Lustre}，CHFS~\cite{tatebe2022chfs}といったファイルシステムではファイルをあるサイズのオブジェクトに分割して保存する．
 一貫性を確保するために，そのオブジェクトごとにロックを取る．そのため，同一のオブジェクトに対する書き込みはロックを取られ，順番に行われる．
 そのオブジェクトのサイズは，stripe\_sizeやchunk\_sizeと呼ばれるパラメータで指定される．
 そのパラーメータで指定されたオブジェクトのサイズと書き込みサイズがあっていない場合，
@@ -101,9 +101,9 @@ Lustre\cite{Lustre}，CHFS\cite{tatebe2022chfs}といったファイルシステ
 \section{関連研究}
 
 HDF5のVOLを用いたI/O処理についての研究は，
-CacheVOL\cite{zheng2022hdf5}やDAOS VOL\cite{soumagne2021accelerating}，Async VOL\cite{tang2021transparent}がある．
+CacheVOL~\cite{zheng2022hdf5}やDAOS VOL~\cite{soumagne2021accelerating}，Async VOL~\cite{tang2021transparent}がある．
 
-Huihuo Zengらによる計算ノードのローカルSSDを利用した研究Cache VOL\cite{zheng2022hdf5}
+Huihuo Zengらによる計算ノードのローカルSSDを利用した研究Cache VOL~\cite{zheng2022hdf5}
 では書き込み時には，まず各ノードのノードローカルSSDに一時的に書き込み，
 その後，非同期で共有ファイルシステムに書き戻す．
 プログラムから見える実効速度はノードローカルSSDの速度のノード数倍のものになり，
@@ -111,11 +111,19 @@ Huihuo Zengらによる計算ノードのローカルSSDを利用した研究Cac
 この研究では，単純に自ノードが発行したI/Oをノードローカルストレージに一時的に書き込み，それを非同期に書き戻すのみであり，
 HDF5のVOL中で得ることができるコンテキストを活用できていない．
 
-Jerome Sounmagneらによる分散オブジェクトストレージであるDAOS\cite{Breitenfeld2017DAOSFE}を使ったDAOS VOL\cite{soumagne2021accelerating}がある．
+Jerome Sounmagneらによる分散オブジェクトストレージであるDAOS~\cite{Breitenfeld2017DAOSFE}を使ったDAOS VOL~\cite{soumagne2021accelerating}がある．
 DAOSは分散オブジェクトストレージであり，高いスケーラビリティを持つことが特徴である．
 この研究では，HDF5のVOLのレイヤーの機能を1つのオブジェクトに対応させ，DAOSに格納している．
 特に，Datasetの書き込みの際にはストライピングが可能であり，そのスライピング数をプログラム中でH5D\_set\_chunk()関数によってユーザーが設定できる．
-しかし，この研究では，VOLの実装中で得られるコンテキストをベースに自動で設定できない．
+しかし，この研究では，VOLの実装中で得られるコンテキストをベースに自動で最適化できない．
+
+Houjun Tangらによる非同期I/Oを実装したAsync VOL~\cite{tang2021transparent}では，
+Dataset等の各機能に対する操作を操作単位で一時的にSSD，DRAMに保存し，
+その依存関係を管理，非同期でファイルシステムに書き戻すことでI/Oの高速化を行っている．
+この研究では，VOLの機能レベルで操作を一時的にノードローカルストレージに保存し，
+依存を管理するという点では新しいが，
+VOLで得られるデータの型のサイズ，データのレイアウト等の情報を活用した最適化をしていない．
+
 
 \section{設計}
 \subsection{Virtual Object Layer/Virtual File Driver}
@@ -141,8 +149,8 @@ HDF5は1つのファイルに任意のデータ型の配列を保存したり，
 HDF5の実際にユーザーから見える機能をそのまま抽象化できる仕組みがVOLである．
 HDF5の機能，Dataset，Group，Attribute，Datatype，File等の機能ごとに，
 open，create，read，write，closeといった関数コールバックを定義することで独自の処理を行うことができる．
-特にDatasetのcallbackの定義を\lstref{lst:volcallback}に示す．
-\begin{lstlisting}[caption=VOLのDataset Callbackの定義,label=lst:volcallback,language=c]
+特にDatasetのコールバックの定義を\lstref{lst:volcallback}に示す．
+\begin{lstlisting}[caption=VOLのDatasetのコールバックの定義,label=lst:volcallback,language=c]
 static void *H5VL_dataset_create(void *obj, const H5VL_loc_params_t *loc_params, const char *name, hid_t lcpl_id, hid_t type_id, hid_t space_id, hid_t dcpl_id, hid_t dapl_id, hid_t dxpl_id, void **req);
 static void *H5VL_dataset_open(void *obj, const H5VL_loc_params_t *loc_params, const char *name, hid_t dapl_id, hid_t dxpl_id, void **req);
 static herr_t H5VL_dataset_read(size_t count, void *dset[], hid_t mem_type_id[], hid_t mem_space_id[], hid_t file_space_id[], hid_t plist_id, void *buf[], void **req);
@@ -152,6 +160,9 @@ static herr_t H5VL_dataset_specific(void *obj, H5VL_dataset_specific_args_t *arg
 static herr_t H5VL_dataset_optional(void *obj, H5VL_optional_args_t *args, hid_t dxpl_id, void **req);
 static herr_t H5VL_dataset_close(void *dset, hid_t dxpl_id, void **req);
 \end{lstlisting}
+Dataset writeコールバックは，
+Datasetに対して何らかのデータを書き込んだときに呼ばれるが，
+引数のmem\_type\_id，mem\_space\_id，file\_space\_id，bufにレイアウト情報などが表現されている．
 既存の実装としては．Native VOL，Async VOL，DAOS VOL，Cache VOLなどがある．
 通常のHDF5のファイルの読み書きに関してもNative VOLプラグインで実装がされ，すべてのI/OがこのVOLを経由して行われる．
 このVOLでは，高レベルなAPIでインターセプトするため，DAOS VOLのように別のストレージシステムに書き込むこともできる．
@@ -176,7 +187,7 @@ VFDプラグインとVOLプラグインについて共有ライブラリとし�
 環境変数に設定し，HDF5のAPIを利用するアプリケーションから簡単に利用できる．
 ソースコード\ref{lst:plugin}にプラグインを利用する方法を示す．
 \begin{lstlisting}[caption=プラグインの利用方法, label=lst:plugin]
-HDF5 PLUGIN PATH=/path/to/plugin/directory HDF5 VOL CONNECTOR=”{my vol connector under vol=0;under info=}” ./program
+HDF5_PLUGIN_PATH=/path/to/plugin/directory HDF5_VOL_CONNECTOR=”{my_vol_connector under_vol=0;under_info=}” ./program
 \end{lstlisting}
 このように環境変数を指定するだけで，独自のI/O処理に切り替えることができる．
 MPI-IOにて新しいコネクターの実装をしたときは，MPI全体をビルドし直す必要があるため，
@@ -189,7 +200,7 @@ MPI-IOにて新しいコネクターの実装をしたときは，MPI全体を�
 \begin{figure}[t]
 	\centering
 	\includegraphics[page=7,width=\linewidth]{figure-crop.pdf}
-	\caption{HDF5のIOスタック}
+	\caption{HDF5のI/Oスタック}
 	\label{fig:hdf5stack}
 \end{figure}
 
@@ -223,7 +234,7 @@ HDF5のデータをファイルに格納する際は，多次元のメモリの�
 
 
 \subsection{Virtual Object Layerで得られる情報}
-VOLのDatasetのwrite Callbackでは，Datasetの書き込みに関しての情報を得ることができる．
+VOLのDatasetのwriteコールバックでは，Datasetの書き込みに関しての情報を得ることができる．
 その情報について表した図を\figref{fig:hdf5infoinvol}に示す．
 H5Sget\_select\_extent\_ndims()によってDatasetの次元数を得ることができる．
 H5Sget\_select\_extent\_dims()によってDatasetの各次元での要素数を得ることができる．
@@ -280,7 +291,8 @@ LustreやCHFSではオブジェクト，チャンクでの並列性がない．
 このような書き込みでは各プロセスどうしのロックを取り合うことがないため，ストレージ本来の性能を活かすことができる．
 
 Lustreでのオブジェクトのサイズはstripe\_sizeによって設定できる．
-しかし，オブジェクトを格納するOSTではパリティの計算が2MiBごとにされるため，2MiB以下は2MiBにアライメントされる．
+しかし，Pegasusに設置されているDDN製のLustreオブジェクトを格納するOSTではパリティの計算が2MiBごとにされるため，2MiBにアラインされる．
+その他の多くのストレージでは小さいサイズの書き込みはブロックサイズよりも大きいサイズにアラインされる．
 そのため，stripe\_sizeを2MiB以下のサイズにしてもロック競合が減ったとしても，パフォーマンスの向上が見込めない．
 今回使用したCHFSでは2MiB以下のサイズに関しても設定可能であり，
 また，バックエンドのストレージが不揮発メモリであるため，どのサイズでもその実サイズでの格納ができる．
@@ -309,33 +321,53 @@ Lustreでのオブジェクトのサイズはstripe\_sizeによって設定で�
 \end{figure}
 
 \section{実装}
-CA VOLではDataset dataをCHFSに書き込むを行う際に，データの書き込み境界とCHFSのチャンク境界を合わせる．
+CA VOLではDataset dataをCHFSに書き込みを行う際に，データの書き込み境界とCHFSのチャンク境界を合わせる．
 CHFSにはファイル作成時にそのファイルのチャンクサイズを指定するAPI，chfs\_create\_chunk\_size()が実装されており，これを利用する．
 Dataset dataの書き込み境界を決定するためには書き込みの粒度が必要で，writeコールバックまでopen,createを遅延させる必要がある．
 実装では，openではなく1度目のwriteでチャンクサイズを決定し，その後のwriteで実際の書き込みを行う．
-そのwriteコールバックの疑似コードをソースコード\ref{lst:chunksize}に示す．
-\begin{lstlisting}[caption=チャンクサイズの決定,label=lst:chunksize]
+そのwriteコールバックの疑似コードをソースコード\ref{lst:write}に示す．
+\begin{lstlisting}[caption=dataset writeのコード,label=lst:write]
 int dataset_write(params) {
-  if (rank == 0) {
-    chunk_size = calc_chunk_size(params);
-    chfs_create_chunk_size(filename, chunk_size);
+  if (fd == -1) {
+    if (rank == 0) {
+      chunk_size = calc_chunk_size(params);
+      chfs_create_chunk_size(filename, chunk_size);
+    }
+    MPI_Barrier();
   }
-  MPI_Barrier();
-
   fd = chfs_open();
+  // I/O処理
   chfs_pwrite(fd, params);
 }
 \end{lstlisting}
-rankが0のプロセスがチャンクサイズを決定し，そのチャンクサイズでファイルを作成する．
-それをファイルの作成を待ち，各プロセスがそのファイルに対して書き込みを行う．
+上のようにrank 0のプロセスがチャンクサイズを決定し，そのチャンクサイズでファイルを作成する．
+他のプロセスはrank 0ファイルの作成を待ち，作成し終わったらopen()し，そのファイルに対して書き込みを行う．
 多くのHPCアプリケーションでは各プロセスが担当する領域は何らかの規則に従い等しく割り当てられることが多い．
 つまり，すべてのプロセスが同様の粒度でデータを書き込むことが多くなる．
 そのため，rank 0での書き込みサイズを元にチャンクサイズを決定した．
+
 チャンクサイズの決定については，3.3節で述べた情報を利用して行う．
-全体のレイアウトと，その中での書き込みむ領域が得られる．
-全体の大きさと書き込む領域の大きさを順番に次元の添字が小さいところから比較することで，
+ソースコード\ref{lst:chunksize}にチャンクサイズの決定部分の疑似コードを示す．
+\begin{lstlisting}[caption=チャンクサイズの決定部分のソースコード(抜粋),label=lst:chunksize]
+size_t dim = H5Sget_simple_extent_ndims(file_space_id[u]);
+H5Sget_select_bounds(file_space_id[u], starts, ends);
+H5Sget_simple_extent_dims(file_space_id[u], dims, maxdims);
+
+hsize_t chunk_size = H5Tget_size(mem_type_id[u]);
+for(size_t k = dim - 1; 0 <= k; k--) {
+  chunk_size *= (ends[k] - starts[k] + 1);
+
+  if(maxdims[k] != (ends[k] - starts[k] + 1)) {
+    break;
+	}
+}
+\end{lstlisting}
+H5Sget\_simple\_extent\_dims()でDataset全体の大きさが得られる．
+またH5Sget\_select\_bounds()で各次元での書き込みむ範囲が得られる．
+全体の大きさと書き込む領域の大きさを順番に次元の添字が大きいところから比較し，
+各次元の大きさが全体の大きさと同じであるところまでの次元の大きさを掛け合わせることで，
 ファイルへ書き込んだときに連続する要素数を得ることができる．
-それに各要素の型のサイズを掛けることで，1つの連続する領域のバイト数を得ることができる．
+これにH5Tget\_size()で得られる型のサイズを掛け合わせることで，連続する領域のバイト数を得ることができる．
 このバイト数をチャンクサイズとして利用することで，書き込み境界とチャンクサイズを合わせる．
 
 
@@ -343,24 +375,24 @@ rankが0のプロセスがチャンクサイズを決定し，そのチャンク
 \subsection{評価環境}
 提案手法についての性能評価実験を行った．
 実験には筑波大学のスーパーコンピューター\cite{ccs2022pegasus}を使用した．
-Pegasusの構成を表\ref{tab:pegasus}に示す．
+Pegasusの計算ノードのスペックを表\ref{tab:pegasus}に示す．
 また，計算機クラスターに接続されている並列分散ファイルシステム，Lustreのスペックを
 表\ref{tab:lustre}に示す．
 
 % textlint-disable
 \begin{table}[t]
-	\caption{Pegasusのスペック}
+	\caption{Pegasusの計算ノードのスペック}
 	\label{tab:pegasus}
 	\centering
 	
 	\begin{tabularx}{\linewidth}{Y|Y}
 		\hline \hline
-		CPU    & Intel Xeon Platinum 8468 (codenamed Sapphire Rapids) 2.1GHz/48c \\ \hline
-		GPU    & NVIDIA H100 Tensor Core GPU with PCIe                           \\ \hline
-		メモリ    & 128GiB DDR5-4800                                                \\ \hline
-		不揮発メモリ & 2TiB Intel Optane persistent memory 300 series                  \\ \hline
-		SSD    & 2 x 3.2TB NVMe SSD (7 GB/s)                                     \\ \hline
-		ネットワーク & NVIDIA Quantum-2 InfiniBand platform (200 Gbps)                 \\ \hline
+		CPU     & Intel Xeon Platinum 8468 (codenamed Sapphire Rapids) 2.1GHz/48c \\ \hline
+		GPU     & NVIDIA H100 Tensor Core GPU with PCIe                           \\ \hline
+		DRAM    & 128GiB DDR5-4800                                                \\ \hline
+		PMEM    & 2TiB Intel Optane persistent memory 300 series                  \\ \hline
+		SSD     & 2 x 3.2TB NVMe SSD (7 GB/s)                                     \\ \hline
+		Network & NVIDIA Quantum-2 InfiniBand platform (200 Gbps)                 \\ \hline
 	\end{tabularx}
 \end{table}
 
@@ -369,16 +401,27 @@ Pegasusの構成を表\ref{tab:pegasus}に示す．
 	\label{tab:lustre}
 	\centering
 	
-	\begin{tabularx}{\linewidth}{Y||Y}
+	\begin{tabularx}{\linewidth}{Y|Y}
 		\hline \hline
-		ファイルシステム & DDN EXAScaler Lustre                                          \\ \hline
-		MDS/MDT  & 1.92 TB NVMe SSD x 11 ( 8D + 2P + 1HS)                        \\ \hline
-		OSS/OST  & 18 TB 7200rpm NL-SAS x 534 (( 33 drives 8 pools + 3HS ) * 2 ) \\ \hline
+		FileSystem            & DDN EXAScaler (Lustre)    \\ \hline
+		Version               & 2.12.9\_ddn38             \\ \hline
+		Total Capacity        & 7.1 PB                    \\ \hline
+		MDS/MDT               & DDN ES200NVX 1x           \\ \hline
+		OSS/OST               & DDN ES7990X 2x            \\ \hline
+		Disk Enclosure        & DDN SS9012 4x             \\ \hline
+		Disk                  & 18TB 7,200rpm NL-SAS HDD  \\ \hline
+		Disk count            & 528 + 6 spare, 33 per OST \\ \hline 
+		OSS count             & 4                         \\ \hline
+		OST count             & 16                        \\ \hline
+		RAID                  & RAID6 8D+2P, DCR RAID     \\ \hline
+		RAID stripe size      & 2MiB (8 x 256KiB)         \\ \hline
+		MDS count             & 2                         \\ \hline
+		Theoretical bandwidth & 50GB/s                    \\ \hline
 	\end{tabularx}
 \end{table}
 
 \subsection{実験方法}
-素粒子物理シミュレーションのI/Oパターンを模したI/Oベンチマークh5bench\cite{h5bench}を利用して評価した．
+素粒子物理シミュレーションのI/Oパターンを模したI/Oベンチマークh5bench~\cite{h5bench}を利用して評価した．
 チェックポインティングのI/Oパターンを模したものであり，各stepで設定した問題サイズのDatasetを8つ作成し，書き込む．
 問題サイズは$8192 \times 8192$，timestep数は3に設定した．各ノードに16プロセスを配置し，ノード数を1-64ノードまで変化させた．
 h5benchの書き込みのアクセスパターンにはsegmentedであるが，stridedなアクセスパターンについても，
@@ -425,6 +468,7 @@ CA VOLのバンド幅は64ノードまでスケールしており，64ノード�
 最適化なしのほうではチャンクを小さく分割しているため，多くのノードに対して分散して書き込みが行われていたためだと考えられる．
 しかし，64ノードでは最適化なしのほうがバンド幅が低下している．
 これは，領域を小さく分割しすぎたため，RPCによるオーバーヘッドが増加したためだと考えられる．
+なお，自動設定されたチャンクサイズは256MiBであった．
 
 \section{まとめ}
 本研究では，計算性能の飛躍的な向上に対してI/O性能が追いついていない問題に対して，
@@ -446,6 +490,11 @@ CA VOLのバンド幅は64ノードまでスケールしており，64ノード�
 ストレージ階層が複雑化し，その各ストレージの性能を最大限活かすためには，
 このような高レベルI/Oライブラリで得ることのできる書き込みコンテキストを活用することが重要である．
 
+今回の実装ではad-hocファイルシステムに対して一時的な書き込みを行ったが，Lustreなどの並列共有ファイルシステムに対してflushをおこなっていない．
+flushを実装することで永続化が可能となる．
+このflushでもストレージのアクセスパターンによる性能を考慮し，
+アグリゲータープロセスを配置してI/Oを適切な粒度で行うことで，ストレージの性能を最大限活かすことが可能であると考えられる．
+このflushの実装を今後の課題とする．
 
 \begin{acknowledgment}
 	本研究の一部は，JSPS科研費22H00509，
